@@ -54,6 +54,7 @@ module ActiveRecord
           
           # Update associated objects
           from.each do |attributes|
+            next if attributes.blank?
             attributes.merge! foreign_key => self.id
             record = (id = attributes[:id]).blank? ? association.build : association.find_by_id(id)
             record.update_attributes(attributes)
