@@ -42,20 +42,29 @@ module ActiveRecord
         method_name = "save_associated_#{name}"
         reflection  = reflect_on_association(name)
         
+        # Create the callback method
         define_method method_name do
           return unless from = instance_variable_get("@#{from}")
           foreign_key = reflection.options[:foreign_key]
           association = send(name)
           ids_to_delete = association.map { |e| e.id }
+          
+          # Update associated objects
           from.each do |attributes|
             attributes.merge! foreign_key => self.id
-            record = (id = attributes[:id]) ? association.find_by_id(id) : association.build
+            record = (id = attributes[:id]).blank? ? association.build : association.find_by_id(id)
             record.update_attributes(attributes)
-            ids_to_delete.delete(id)
+            ids_to_delete.delete(id.to_i)
           end
-          association.delete(ids_to_delete) if options[:delete]
+          
+          # Delete unreferenced associated objects
+          reflection.options[:class_name].constantize.delete(ids_to_delete) if options[:delete]
         end
           
+        # Create accessor for the variable  
+        attr_accessor from  
+        
+        # Create the callback
         after_save method_name
       end
     end
