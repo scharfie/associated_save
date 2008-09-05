@@ -36,6 +36,9 @@ module ActiveRecord
       # unless the :delete option is set to false (defaults to true).  This is
       # useful if you use JS to remove a set of form fields from the DOM, for
       # example.
+      #
+      # Note: this plugin is designed for has_many relationships,
+      # since that is the most likely candidate for this type of functionality.
       def associated_save(name, options={})
         options.reverse_merge! :from => "_#{name}", :delete => true
         from        = options[:from]
