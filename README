@@ -13,7 +13,7 @@ The best way to describe this is with an example:
   end
 
   # form:
-  <% hidden_field_tag 'collection[_items][]', nil %>
+  <% hidden_field_tag 'collection[_items]', nil %>
   <% @collection.items.each do |item| %>
     <% fields_for 'collection[_items][]', item do |form| %>
       <%= form.text_field :name %>
