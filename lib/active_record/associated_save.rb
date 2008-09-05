@@ -50,12 +50,14 @@ module ActiveRecord
           return unless from = instance_variable_get("@#{from}")
           foreign_key = reflection.options[:foreign_key]
           association = send(name)
-          ids_to_delete = association.map { |e| e.id }
+          position_column = association.column_names.include?('position') ? 'position' : nil
+          ids_to_delete   = association.map { |e| e.id }
           
           # Update associated objects
-          [*from].each do |attributes|
+          [*from].each_with_index do |attributes, index|
             next if attributes.blank?
-            attributes.merge! foreign_key => self.id
+            attributes.merge!(foreign_key => self.id)
+            attributes.merge!(position_column => index) if position_column
             record = (id = attributes[:id]).blank? ? association.build : association.find_by_id(id)
             record.update_attributes(attributes)
             ids_to_delete.delete(id.to_i)
