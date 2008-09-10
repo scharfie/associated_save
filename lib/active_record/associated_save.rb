@@ -45,6 +45,9 @@ module ActiveRecord
         method_name = "save_associated_#{name}"
         reflection  = reflect_on_association(name)
         
+        # Store the options for reflection
+        associated_saves[name.to_sym] = Reflection.new(options.merge(:callback => method_name, :reflection => reflection))
+        
         # Create the callback method
         define_method method_name do
           return unless from = instance_variable_get("@#{from}")
@@ -66,22 +69,53 @@ module ActiveRecord
           # Delete unreferenced associated objects
           reflection.options[:class_name].constantize.delete(ids_to_delete) if options[:delete]
         end
-          
+        
         # Create accessor for the variable  
         attr_accessor from  
         
         # Create the callback
         after_save method_name
       end
+      
+      # Hash of all associated save reflection data
+      def associated_saves
+        @associated_saves ||= HashWithIndifferentAccess.new
+      end
+      
+      # Returns associated save reflection for given association
+      def reflect_on_associated_save(association)
+        associated_saves[association]
+      end
+    
+      # Returns the name of the variable used for given association
+      def associated_save_variable(association)
+        reflection = reflect_on_associated_save(association)
+        reflection.options[:from]
+      end
     end
     
     module InstanceMethods
-      # Nothing for now
+      # Returns data for given association from associated 
+      # save variable
+      def associated_save_data(association)
+        from = self.class.associated_save_variable(association)
+        instance_variable_get "@#{from}"
+      end
     end
     
     def self.included(receiver)
       receiver.extend         ClassMethods
       receiver.send :include, InstanceMethods
+    end
+    
+    class Reflection
+      attr_accessor_with_default :options do
+        HashWithIndifferentAccess.new
+      end
+
+      def initialize(options={})
+        @options = options
+      end
     end
   end
 end
