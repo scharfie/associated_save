@@ -1,3 +1,5 @@
+require "enumerator"
+
 module ActiveRecord
   module AssociatedSave
     module ClassMethods
@@ -40,41 +42,30 @@ module ActiveRecord
       # Note: this plugin is designed for has_many relationships,
       # since that is the most likely candidate for this type of functionality.
       def associated_save(name, options={})
-        options.reverse_merge! :from => "_#{name}", :delete => true
-        from        = options[:from]
-        method_name = "save_associated_#{name}"
-        reflection  = reflect_on_association(name)
+        # Build reflection
+        associated_reflection = associated_saves[name.to_sym] = Reflection.new(name, options)
+        reflection = reflect_on_association(name)
         
-        # Store the options for reflection
-        associated_saves[name.to_sym] = Reflection.new(options.merge(:callback => method_name, :reflection => reflection))
+        from = associated_reflection[:from]
+        callback = associated_reflection[:callback]
         
         # Create the callback method
-        define_method method_name do
-          return unless from = instance_variable_get("@#{from}")
-          foreign_key = reflection.options[:foreign_key]
+        define_method callback do
           association = send(name)
-          position_column = association.column_names.include?('position') ? 'position' : nil
-          ids_to_delete   = association.map { |e| e.id }
-          
-          # Update associated objects
-          [*from].each_with_index do |attributes, index|
-            next if attributes.blank?
-            attributes.merge!(foreign_key => self.id)
-            attributes.merge!(position_column => index) if position_column
-            record = (id = attributes[:id]).blank? ? association.build : association.find_by_id(id)
-            record.update_attributes(attributes)
-            ids_to_delete.delete(id.to_i)
-          end
+          ids_to_delete = association.map { |e| e.id }
+          return unless new_objects = associated_save_objects(name)
+          new_objects.map { |e| e.save }
+          ids_to_delete -= new_objects.map { |e| e.id }
           
           # Delete unreferenced associated objects
-          reflection.options[:class_name].constantize.delete(ids_to_delete) if options[:delete]
+          reflection.options[:class_name].constantize.delete(ids_to_delete) if associated_reflection[:delete]
         end
         
         # Create accessor for the variable  
         attr_accessor from  
         
         # Create the callback
-        after_save method_name
+        after_save callback
       end
       
       # Hash of all associated save reflection data
@@ -95,6 +86,26 @@ module ActiveRecord
     end
     
     module InstanceMethods
+      # Builds objects for association
+      def associated_save_objects(association)
+        associated_reflection = self.class.reflect_on_associated_save(association)
+        reflection = self.class.reflect_on_association(association)
+        
+        return nil unless from = instance_variable_get("@#{associated_reflection[:from]}")
+        foreign_key = reflection.options[:foreign_key]
+        association = send(associated_reflection[:name])
+        position_column = association.column_names.include?('position') ? 'position' : nil
+        
+        [*from].enum_with_index.map do |attributes, index|
+          next if attributes.blank?
+          attributes.merge!(foreign_key => self.id)
+          attributes.merge!(position_column => index) if position_column
+          record = (id = attributes[:id]).blank? ? association.build : association.find_by_id(id)
+          record.attributes = attributes
+          record
+        end
+      end
+
       # Returns data for given association from associated 
       # save variable
       def associated_save_data(association)
@@ -109,12 +120,16 @@ module ActiveRecord
     end
     
     class Reflection
-      attr_accessor_with_default :options do
-        HashWithIndifferentAccess.new
-      end
+      attr_accessor :options
 
-      def initialize(options={})
-        @options = options
+      def initialize(name, options={})
+        @options = options.reverse_merge :from => "_#{name}", :delete => true
+        @options[:name]     = name
+        @options[:callback] = "save_associated_#{name}"
+      end
+      
+      def [](key)
+        options[key]
       end
     end
   end
