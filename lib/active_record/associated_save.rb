@@ -61,6 +61,10 @@ module ActiveRecord
           reflection.class_name.constantize.delete(ids_to_delete) if associated_reflection[:delete]
         end
         
+        define_method "associated_#{name}" do
+          associated_save_objects(name)
+        end
+        
         # Create accessor for the variable  
         attr_accessor from  
         

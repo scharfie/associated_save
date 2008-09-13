@@ -18,6 +18,8 @@ class AssociatedSaveTest < Test::Unit::TestCase
     reflection = Collection.reflect_on_associated_save(:items)
     assert_equal '_items', reflection[:from]
     assert_equal 'save_associated_items', reflection[:callback]
+    
+    assert Collection.instance_methods.include?('associated_items')
   end
   
   def test_assignment
