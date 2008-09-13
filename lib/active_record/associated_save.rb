@@ -58,7 +58,7 @@ module ActiveRecord
           ids_to_delete -= new_objects.map { |e| e.id }
           
           # Delete unreferenced associated objects
-          reflection.options[:class_name].constantize.delete(ids_to_delete) if associated_reflection[:delete]
+          reflection.class_name.constantize.delete(ids_to_delete) if associated_reflection[:delete]
         end
         
         # Create accessor for the variable  
@@ -92,10 +92,10 @@ module ActiveRecord
         reflection = self.class.reflect_on_association(association)
         
         return nil unless from = instance_variable_get("@#{associated_reflection[:from]}")
-        foreign_key = reflection.options[:foreign_key]
+        foreign_key = reflection.primary_key_name
         association = send(associated_reflection[:name])
         position_column = association.column_names.include?('position') ? 'position' : nil
-        
+
         [*from].enum_with_index.map do |attributes, index|
           next if attributes.blank?
           attributes.merge!(foreign_key => self.id)
