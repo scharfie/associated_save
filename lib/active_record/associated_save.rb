@@ -101,6 +101,8 @@ module ActiveRecord
         position_column = association.column_names.include?('position') ? 'position' : nil
 
         [*from].enum_with_index.map do |attributes, index|
+          # handle hashes - grab the value
+          attributes = attributes.last if Array === attributes
           next if attributes.blank?
           attributes.merge!(foreign_key => self.id)
           attributes.merge!(position_column => index) if position_column
