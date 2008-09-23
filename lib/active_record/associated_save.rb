@@ -109,7 +109,7 @@ module ActiveRecord
           record = (id = attributes[:id]).blank? ? association.build : association.find_by_id(id)
           record.attributes = attributes
           record
-        end
+        end.compact
       end
 
       # Returns data for given association from associated 
