@@ -100,13 +100,16 @@ module ActiveRecord
         association = send(associated_reflection[:name])
         position_column = association.column_names.include?('position') ? 'position' : nil
 
+        # If we receive a hash, sort it and extract the value
+        from = from.sort.map { |e| e.last } if Hash === from
+        
         [*from].enum_with_index.map do |attributes, index|
           # handle hashes - grab the value
           attributes = attributes.last if Array === attributes
           next if attributes.blank?
           attributes.merge!(foreign_key => self.id)
           attributes.merge!(position_column => index) if position_column
-          record = (id = attributes[:id]).blank? ? association.build : association.find_by_id(id)
+          record = (record_id = attributes.delete(:id)).blank? ? association.build : association.find_by_id(record_id)
           record.attributes = attributes
           record
         end.compact
